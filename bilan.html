@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Système automatisé de recherche de profil/recrutement</title>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    :root{
+      --bg:#0a0a0a;
+      --fg:#ffffff;
+      --muted:#d0d0d0;
+      --accent:#1a735d;
+      --accent2:#34d399;
+      --pad-x: clamp(40px, 3.5vw, 80px);
+      --pad-y: clamp(30px, 3vh, 60px);
+      --nav-h: 64px;
+      --dot: 12px;
+      --top-safe: 40px;     /* logo + compteur */
+      --bottom-safe: 110px;
+    }
+
+    *{ margin:0; padding:0; box-sizing:border-box; }
+
+    body{
+      font-family:'Inter', sans-serif;
+      background:var(--bg);
+      color:var(--fg);
+      overflow:hidden;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .logo{
+      position:fixed;
+      top:20px;
+      left:20px;
+      z-index:1000;
+      width: 220px;
+      height:auto;
+      pointer-events:none;
+    }
+    .logo img{
+      width:100%;
+      height:auto;
+      filter: drop-shadow(0 6px 26px rgba(26, 115, 93, 0.35));
+    }
+
+    .page-indicator{
+      position:fixed;
+      top:20px;
+      right:20px;
+      font-family:'JetBrains Mono', monospace;
+      font-size:16px;
+      font-weight:700;
+      color:var(--accent);
+      background:rgba(10,10,10,0.75);
+      padding:10px 16px;
+      border-radius:999px;
+      backdrop-filter: blur(18px);
+      border:1px solid rgba(26,115,93,0.35);
+      z-index:1000;
+    }
+
+    .carousel-wrapper{
+      width:100vw;
+      height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .carousel-container{
+      width: 100vw;
+      height: 100vh;
+      overflow:hidden;
+      position:relative;
+      background:var(--bg);
+      width: 100vw;
+      height: calc(100vh - var(--top-safe) - var(--bottom-safe));
+      margin-top: var(--top-safe);
+      overflow:hidden;
+    }
+
+    .carousel{
+      display:flex;
+      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      height:100%;
+      will-change: transform;
+    }
+
+    .slide{
+      min-width: 100%;
+      height: 100%;
+      padding:  6px var(--pad-x) 20px;
+      overflow-y: auto;
+      display: flex;
+      align-items: flex-start;
+}
+
+    .slide.dense{
+      padding-top: calc(var(--pad-y) * 0.7);
+      padding-bottom: calc(var(--pad-y) * 0.7);
+    }
+    .slide.dense .accent-line{ margin: 10px 0 14px; height: 4px; }
+    .slide.dense h3{ margin-bottom: 10px; }
+    .slide.dense h2{ margin-bottom: 10px; }
+    .slide.dense p{ margin-bottom: 8px; }
+    .slide.dense .diagram{ padding: 18px; }
+    .slide.dense .diagram-title{ font-size: 20px; margin-bottom: 10px; }
+    .slide.dense .diagram-row{ gap: 8px; }
+    .slide.dense .diagram-item{
+      font-size: 15px;
+      padding: 12px 14px;
+      min-height: 40px;
+    }
+
+    .slide-content{
+      position:relative;
+      z-index:1;
+      width:100%;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .slide::before{
+      content:'';
+      position:absolute;
+      inset:0;
+      background:
+        radial-gradient(circle at 20% 50%, rgba(26,115,93,0.08) 0%, transparent 52%),
+        radial-gradient(circle at 80% 50%, rgba(52,211,153,0.05) 0%, transparent 52%);
+      pointer-events:none;
+    }
+
+    h1{
+      font-size: clamp(48px, 5vw, 95px);
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing: -2.5px;
+      line-height:1.08;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #ffffff 0%, var(--accent) 100%);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+      background-clip:text;
+    }
+
+    h2{
+      font-size: clamp(32px, 3.5vw, 65px);
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing: -1px;
+      line-height:1.15;
+      margin-bottom: 16px;
+      color:var(--fg);
+    }
+
+    h3{
+      font-family:'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight:700;
+      text-transform:uppercase;
+      letter-spacing:3px;
+      color:var(--accent);
+      margin-bottom: 16px;
+    }
+
+    p{
+      font-size: clamp(16px, 1.2vw, 20px);
+      line-height:1.5;
+      font-weight:400;
+      color:var(--muted);
+      margin-bottom: 14px;
+      max-width: 1200px;
+    }
+
+    .accent-line{
+      width: 70px;
+      height: 5px;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
+      box-shadow: 0 0 30px rgba(26,115,93,0.55);
+      margin: 16px 0 20px;
+    }
+
+    .content-box{
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.03);
+      backdrop-filter: blur(10px);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-top: 14px;
+      position: relative;
+    }
+    .content-box::before{
+      content:'';
+      position:absolute;
+      top:0;
+      left:0;
+      right:0;
+      height:3px;
+      border-radius: 10px 10px 0 0;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 100%);
+      opacity: 0.9;
+    }
+    .content-box ul{
+      margin-top: 10px;
+      padding-left: 20px;
+    }
+    .content-box li{
+      font-size: clamp(15px, 1.1vw, 18px);
+      line-height:1.55;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .content-box strong{
+      color: var(--accent2);
+      font-weight: 700;
+    }
+
+    .split{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      align-items:start;
+    }
+
+    .diagram{
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 14px;
+      padding: 28px;
+      position:relative;
+    }
+    .diagram-title{
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--accent);
+      margin-bottom: 16px;
+      text-align:center;
+    }
+    .diagram-row{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .diagram-item{
+      background: rgba(26,115,93,0.10);
+      border-left: 5px solid var(--accent);
+      padding: 16px 18px;
+      border-radius: 10px;
+      color: var(--fg);
+      font-weight: 700;
+      font-size: 17px;
+      min-height: 50px;
+      display:flex;
+      align-items:center;
+    }
+
+    .step-number{
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--bg);
+      font-weight: 900;
+      font-size: 16px;
+      text-align: center;
+      line-height: 30px;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+
+    .tool-badge{
+      display: inline-block;
+      background: rgba(52,211,153,0.15);
+      border: 1px solid rgba(52,211,153,0.3);
+      color: var(--accent2);
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-right: 8px;
+      margin-bottom: 8px;
+    }
+
+    .navigation{
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 18px;
+      z-index: 1000;
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      background: rgba(10,10,10,0.7);
+      border: 1px solid rgba(255,255,255,0.10);
+      backdrop-filter: blur(16px);
+      border-radius: 999px;
+      padding: 10px 14px;
+      height: var(--nav-h);
+      max-width: min(92vw, 980px);
+    }
+
+    .nav-arrow{
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      border: 1px solid rgba(26,115,93,0.50);
+      background: rgba(26,115,93,0.08);
+      color: var(--accent2);
+      font-weight: 900;
+      font-size: 20px;
+      cursor: pointer;
+      transition: transform .2s ease, background .2s ease;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      user-select:none;
+    }
+    .nav-arrow:hover{
+      transform: scale(1.06);
+      background: rgba(26,115,93,0.18);
+    }
+
+    .dots{
+      display:flex;
+      gap: 8px;
+      overflow-x:auto;
+      padding: 0 6px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      max-width: 720px;
+    }
+    .dots::-webkit-scrollbar{ display:none; }
+
+    .dot{
+      width: var(--dot);
+      height: var(--dot);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.18);
+      cursor:pointer;
+      flex: 0 0 auto;
+      transition: transform .2s ease, background .2s ease, border-color .2s ease;
+    }
+    .dot:hover{ transform: scale(1.15); }
+    .dot.active{
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+      border-color: rgba(52,211,153,0.75);
+      box-shadow: 0 0 18px rgba(26,115,93,0.35);
+      transform: scale(1.2);
+    }
+
+    .kbd-hint{
+      font-family:'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: rgba(255,255,255,0.42);
+      padding-left: 6px;
+      user-select:none;
+      white-space:nowrap;
+    }
+
+    @media (max-width: 1200px){
+      .split{ grid-template-columns: 1fr; gap: 20px; }
+      .logo{ width: 180px; }
+      .page-indicator{ font-size: 14px; }
+    }
+
+    @media (max-width: 700px){
+      .logo{ width: 150px; top: 15px; left: 15px; }
+      .page-indicator{ top: 15px; right: 15px; }
+      .navigation{ bottom: 12px; }
+      :root{ --nav-h: 58px; --dot: 11px; }
+    }
+
+    .carousel-container::after{
+      content:'';
+      position:absolute;
+      left:0; right:0; bottom:0;
+      height: 90px;
+      background: linear-gradient(to top, rgba(10,10,10,0.65), transparent);
+      pointer-events:none;
+      opacity: 0.35;
+    }
+  </style>
+</head>
+<body>
+
+<div class="logo">
+<img alt="Logo" src="Transparent-02.png"/>
+</div>
+
+<div class="page-indicator">
+<span id="currentPage">1</span> / <span id="totalPages">9</span>
+</div>
+
+<div class="carousel-wrapper">
+<div class="carousel-container" id="carouselContainer">
+<div class="carousel" id="carousel">
+
+<section class="slide">
+<div class="slide-content">
+<h3>AUTOMATISATION INTELLIGENTE</h3>
+<h1>SYSTÈME DE RECRUTEMENT AUTOMATISÉ</h1>
+<div class="accent-line"></div>
+<p>De la détection du besoin à l'injection dans le CRM : un flux entièrement automatisé qui orchestre détection, recherche, qualification et prospection LinkedIn.</p>
+<div class="content-box">
+<strong>Objectif :</strong> Transformer chaque besoin de recrutement en pipeline qualifié sans intervention manuelle.
+</div>
+</div>
+</section>
+
+<section class="slide dense">
+<div class="slide-content">
+<h3>VUE D'ENSEMBLE</h3>
+<h2>LE FLUX COMPLET</h2>
+<div class="accent-line"></div>
+<div class="diagram">
+<div class="diagram-title">6 Étapes Automatisées</div>
+<div class="diagram-row">
+<div class="diagram-item"><span class="step-number">1</span> Détection du besoin</div>
+<div class="diagram-item"><span class="step-number">2</span> Formulation fiche de poste</div>
+<div class="diagram-item"><span class="step-number">3</span> Recherche de profils</div>
+<div class="diagram-item"><span class="step-number">4</span> Analyse et sélection</div>
+<div class="diagram-item"><span class="step-number">5</span> Connexion LinkedIn + message</div>
+<div class="diagram-item"><span class="step-number">6</span> Injection dans le CRM</div>
+</div>
+</div>
+<div class="content-box" style="margin-top: 18px;">
+<p><strong>Stack technique :</strong></p>
+<div style="margin-top: 10px;">
+<span class="tool-badge">Outlook / Ringover</span>
+<span class="tool-badge">Make</span>
+<span class="tool-badge">GPT</span>
+<span class="tool-badge">Phantombuster</span>
+<span class="tool-badge">BoondManager</span>
+</div>
+</div>
+</div>
+</section>
+
+<section class="slide">
+<div class="slide-content">
+<h3>ÉTAPE 1</h3>
+<h2>DÉTECTION DU BESOIN</h2>
+<div class="accent-line"></div>
+<p><strong>Objectif :</strong> Identifier automatiquement quand une entreprise ou un contact exprime un besoin pour un profil.</p>
+<div class="split">
+<div class="content-box">
+<strong>Outils utilisés :</strong>
+<div style="margin-top: 10px;">
+<span class="tool-badge">Outlook</span>
+<span class="tool-badge">Ringover</span>
+</div>
+</div>
+<div class="content-box">
+<strong>Rôle de Make :</strong>
+<p style="margin-top: 10px;">Orchestration du trigger : dès qu'un mail ou appel correspondant est détecté, les données sont envoyées à GPT pour traitement.</p>
+</div>
+</div>
+<div class="content-box">
+<strong>Ce que ça fait :</strong>
+<ul>
+<li>Lit automatiquement les emails, messages entrants, ou logs d'appels</li>
+<li>Détecte des mots-clés ou expressions indiquant un besoin de recrutement (ex : "nous cherchons un CTO", "besoin d'un commercial")</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section class="slide">
+<div class="slide-content">
+<h3>ÉTAPE 2</h3>
+<h2>FORMULATION DE LA FICHE DE POSTE</h2>
+<div class="accent-line"></div>
+<p><strong>Objectif :</strong> Transformer le besoin détecté en fiche de poste structurée.</p>
+<div class="split">
+<div class="content-box">
+<strong>Outils utilisés :</strong>
+<div style="margin-top: 10px;">
+<span class="tool-badge">GPT via Make</span>
+</div>
+</div>
+<div class="content-box">
+<strong>Rôle de Make :</strong>
+<ul>
+<li>Appelle GPT automatiquement pour chaque nouveau besoin</li>
+<li>Récupère la fiche structurée et la prépare pour la recherche de profils</li>
+</ul>
+</div>
+</div>
+<div class="content-box">
+<strong>Ce que ça fait :</strong>
+<ul>
+<li>Prend le texte du mail / appel ou message</li>
+<li>Génère une fiche de poste complète avec :
+<ul style="margin-top: 6px; padding-left: 18px;">
+<li>Intitulé du poste</li>
+<li>Localisation / zone géographique</li>
+<li>Seniorité</li>
+<li>Compétences et mots-clés</li>
+<li>Secteur / type d'entreprise</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section class="slide">
+<div class="slide-content">
+<h3>ÉTAPE 3</h3>
+<h2>RECHERCHE DE PROFILS</h2>
+<div class="accent-line"></div>
+<p><strong>Objectif :</strong> Trouver une liste de profils LinkedIn correspondant au besoin.</p>
+<div class="split">
+<div class="content-box">
+<strong>Outil utilisé :</strong>
+<div style="margin-top: 10px;">
+<span class="tool-badge">Phantombuster</span>
+</div>
+</div>
+<div class="content-box">
+<strong>Rôle de Make :</strong>
+<p style="margin-top: 10px;">Orchestration : envoie automatiquement la fiche de poste à Phantombuster et récupère les résultats.</p>
+</div>
+</div>
+<div class="content-box">
+<strong>Ce que ça fait :</strong>
+<ul>
+<li>Prend la fiche de poste / critères générés par GPT</li>
+<li>Lance la recherche LinkedIn ou Sales Navigator</li>
+<li>Récupère tous les profils correspondant aux critères</li>
+</ul>
+<p style="margin-top: 14px;"><strong>Sortie :</strong> JSON ou CSV avec : nom, poste, entreprise, localisation, résumé, URL LinkedIn.</p>
+</div>
+</div>
+</section>
+
+<section class="slide">
+<div class="slide-content">
+<h3>ÉTAPE 4</h3>
+<h2>ANALYSE ET SÉLECTION DES PROFILS</h2>
+<div class="accent-line"></div>
+<p><strong>Objectif :</strong> Identifier les profils les plus pertinents parmi ceux trouvés.</p>
+<div class="content-box">
+<strong>Outil utilisé :</strong>
+<div style="margin-top: 10px;">
+<span class="tool-badge">GPT via Make</span>
+</div>
+</div>
+<div class="content-box">
+<strong>Ce que ça fait :</strong>
+<ul>
+<li>Analyse chaque profil extrait par Phantombuster</li>
+<li>Compare avec les critères de la fiche de poste</li>
+<li>Attribue un score ou sélectionne les profils "valides"</li>
+</ul>
+<p style="margin-top: 14px;"><strong>Sortie :</strong> Liste de profils filtrés et qualifiés.</p>
+</div>
+</div>
+</section>
+
+<section class="slide">
+<div class="slide-content">
+<h3>ÉTAPE 5</h3>
+<h2>DEMANDE DE CONNEXION LINKEDIN ET MESSAGE</h2>
+<div class="accent-line"></div>
+<p><strong>Objectif :</strong> Contacter automatiquement les profils sélectionnés sur LinkedIn.</p>
+<div class="split">
+<div class="content-box">
+<strong>Outil utilisé :</strong>
+<div style="margin-top: 10px;">
+<span class="tool-badge">Phantombuster</span>
+</div>
+</div>
+<div class="content-box">
+<strong>Rôle de GPT :</strong>
+<p style="margin-top: 10px;">Génère les messages personnalisés pour chaque profil.</p>
+<strong style="margin-top: 12px; display: block;">Rôle de Make :</strong>
+<p style="margin-top: 10px;">Orchestration complète, gestion du timing et des relances.</p>
+</div>
+</div>
+<div class="content-box">
+<strong>Ce que ça fait :</strong>
+<ul>
+<li>Prend la liste des profils qualifiés</li>
+<li>Envoie la demande de connexion LinkedIn</li>
+<li>Détecte l'acceptation</li>
+<li>Envoie un message personnalisé après acceptation</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section class="slide dense">
+<div class="slide-content">
+<h3>ÉTAPE 6</h3>
+<h2>INJECTION DANS LE CRM</h2>
+<div class="accent-line"></div>
+<p><strong>Objectif :</strong> Centraliser les profils contactés et suivis.</p>
+<div class="split">
+<div class="content-box">
+<strong>Outil utilisé :</strong>
+<div style="margin-top: 10px;">
+<span class="tool-badge">BoondManager</span>
+</div>
+<strong style="margin-top: 14px; display: block;">Rôle de Make :</strong>
+<p style="margin-top: 10px;">Automatisation complète du transfert et mise à jour du CRM.</p>
+</div>
+<div class="content-box">
+<strong>Ce que ça fait :</strong>
+<ul>
+<li>Make envoie automatiquement les profils acceptés / contactés dans le CRM</li>
+<li>Inclut toutes les informations utiles : nom, poste, entreprise, URL LinkedIn, score GPT, messages envoyés</li>
+</ul>
+</div>
+</div>
+<div class="content-box" style="margin-top: 18px;">
+<strong>Points clés du système :</strong>
+<ul>
+<li><strong>GPT</strong> = cerveau pour interprétation et sélection</li>
+<li><strong>Phantombuster</strong> = extraction et action LinkedIn</li>
+<li><strong>Make</strong> = chef d'orchestre de l'ensemble</li>
+<li><strong>Outlook / Ringover</strong> = source d'information</li>
+<li><strong>BoondManager</strong> = CRM central</li>
+<li><strong>Envoi par email</strong> d'une synthèse claire des actions réalisées, spécifique au besoin actuel, pour un suivi et une visibilité immédiats</li>
+</ul>
+<p style="margin-top: 14px; color: var(--accent2); font-weight: 700;">✅ Tout est automatisé de la détection du besoin à la prospection et au suivi CRM.</p>
+</div>
+</div>
+</section>
+
+<section class="slide dense">
+<div class="slide-content">
+<h3>INVESTISSEMENT</h3>
+<h2>COÛT DU SYSTÈME</h2>
+<div class="accent-line"></div>
+<p>Détail des coûts mensuels pour faire fonctionner le système complet.</p>
+<div class="diagram">
+<div class="diagram-title">Coûts des Outils</div>
+<div class="diagram-row">
+<div class="diagram-item">
+<div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+<span><span class="tool-badge" style="margin: 0;">Make</span> Orchestration automatisée</span>
+<span style="color: var(--accent2); font-size: 19px; font-weight: 900;">10-20€/mois</span>
+</div>
+</div>
+<div class="diagram-item">
+<div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+<span><span class="tool-badge" style="margin: 0;">Phantombuster</span> Extraction & prospection LinkedIn</span>
+<span style="color: var(--accent2); font-size: 19px; font-weight: 900;">50-130€/mois</span>
+</div>
+</div>
+<div class="diagram-item">
+<div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+<span><span class="tool-badge" style="margin: 0;">GPT</span> Crédits d'analyse IA (moyenne)</span>
+<span style="color: var(--accent2); font-size: 19px; font-weight: 900;">~10€/mois</span>
+</div>
+</div>
+</div>
+<div style="margin-top: 20px; padding: 18px; background: rgba(26,115,93,0.08); border-radius: 10px; border: 2px dashed rgba(52,211,153,0.3);">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<span style="font-size: 17px; font-weight: 700; color: var(--fg);">Total infrastructure mensuelle</span>
+<span style="color: var(--accent2); font-size: 23px; font-weight: 900;">70-160€/mois</span>
+</div>
+</div>
+</div>
+<div class="content-box" style="margin-top: 20px;">
+<strong style="font-size: 20px; color: var(--accent);">+ Prestation de mise en place et accompagnement</strong>
+<div style="margin-top: 14px; padding: 18px; background: rgba(52,211,153,0.05); border-radius: 8px; border-left: 5px solid var(--accent2);">
+<p style="font-size: 18px; font-weight: 700; color: var(--fg); margin-bottom: 12px;">Conception et mise en place du système : <span style="color: var(--accent2); font-size: 22px; font-weight: 900;">450 €</span></p>
+<p style="font-size: 15px; line-height: 1.55; color: var(--muted); margin-bottom: 10px;">Mise en œuvre du workflow complet sur une durée estimée à environ deux semaines, selon la disponibilité pour les échanges et la transmission des éléments nécessaires.</p>
+<p style="font-size: 15px; line-height: 1.55; color: var(--muted); margin-bottom: 0;">Un accompagnement complémentaire peut ensuite être envisagé afin d'assurer la maintenance, les ajustements ou l'évolution du système dans le temps, selon vos besoins.</p>
+</div>
+</div>
+</div>
+</section>
+
+</div>
+</div>
+</div>
+
+<div aria-label="Navigation du carrousel" class="navigation" id="navigation">
+<button class="nav-arrow" id="prevBtn" title="Précédent (←)">←</button>
+<div aria-label="Pages" class="dots" id="dots"></div>
+<button class="nav-arrow" id="nextBtn" title="Suivant (→)">→</button>
+<div class="kbd-hint">← / → • espace</div>
+</div>
+
+<script>
+    let currentSlide = 0;
+    const carousel = document.getElementById('carousel');
+    const slides = Array.from(document.querySelectorAll('#carousel .slide'));
+    const totalSlides = slides.length;
+    const currentPageSpan = document.getElementById('currentPage');
+    const totalPagesSpan = document.getElementById('totalPages');
+    totalPagesSpan.textContent = totalSlides;
+    const dotsEl = document.getElementById('dots');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    const dots = [];
+    for (let i = 0; i < totalSlides; i++) {
+      const d = document.createElement('button');
+      d.className = 'dot' + (i === 0 ? ' active' : '');
+      d.type = 'button';
+      d.setAttribute('aria-label', 'Aller à la page ' + (i + 1));
+      d.addEventListener('click', () => goToSlide(i));
+      dotsEl.appendChild(d);
+      dots.push(d);
+    }
+
+    function updateCarousel() {
+      carousel.style.transform = `translateX(-${currentSlide * 100}%)`;
+      currentPageSpan.textContent = currentSlide + 1;
+      dots.forEach((d, idx) => d.classList.toggle('active', idx === currentSlide));
+      const active = dots[currentSlide];
+      if (active) {
+        const box = dotsEl.getBoundingClientRect();
+        const a = active.getBoundingClientRect();
+        if (a.left < box.left + 18) dotsEl.scrollLeft -= (box.left - a.left) + 24;
+        if (a.right > box.right - 18) dotsEl.scrollLeft += (a.right - box.right) + 24;
+      }
+      prevBtn.disabled = currentSlide === 0;
+      nextBtn.disabled = currentSlide === totalSlides - 1;
+      prevBtn.style.opacity = prevBtn.disabled ? 0.5 : 1;
+      nextBtn.style.opacity = nextBtn.disabled ? 0.5 : 1;
+      prevBtn.style.cursor = prevBtn.disabled ? 'not-allowed' : 'pointer';
+      nextBtn.style.cursor = nextBtn.disabled ? 'not-allowed' : 'pointer';
+    }
+
+    function goToSlide(index) {
+      currentSlide = Math.max(0, Math.min(index, totalSlides - 1));
+      updateCarousel();
+    }
+
+    function nextSlide() { goToSlide(currentSlide + 1); }
+    function previousSlide() { goToSlide(currentSlide - 1); }
+
+    prevBtn.addEventListener('click', previousSlide);
+    nextBtn.addEventListener('click', nextSlide);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') previousSlide();
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        nextSlide();
+      }
+    });
+
+    let touchStartX = 0;
+    carousel.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    carousel.addEventListener('touchend', (e) => {
+      const touchEndX = e.changedTouches[0].screenX;
+      if (touchStartX - touchEndX > 60) nextSlide();
+      if (touchEndX - touchStartX > 60) previousSlide();
+    }, { passive: true });
+
+    let wheelTimeout;
+    carousel.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      clearTimeout(wheelTimeout);
+      wheelTimeout = setTimeout(() => {
+        if (e.deltaY > 0) nextSlide();
+        if (e.deltaY < 0) previousSlide();
+      }, 60);
+    }, { passive: false });
+
+    updateCarousel();
+  </script>
+</body>
+</html>
